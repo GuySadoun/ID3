@@ -1,4 +1,6 @@
 from operator import itemgetter
+from sklearn.model_selection import KFold
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pan
 import time
@@ -23,9 +25,6 @@ class Node:
 
     def set_right_son(self, node):
         self.right_son = node
-
-    def set_father(self, node):
-        self.father = node
 
     def set_separator(self, feature, threshold):
         self.separating_f = feature
@@ -80,18 +79,19 @@ def entropy_h(node_set):
 class ID3:
     is_tree_initialize: bool
     nodes_in_tree = 0
+    feature_to_column = {}
 
-    def __init__(self, train_file_path, min_node_set_size=1):
+    def __init__(self, features_list, train_np, min_node_set_size=1):
         # start = time.time()
 
         self.min_node_size = min_node_set_size
         self.is_tree_initialize = False
         m_b_count = {'B': 0, 'M': 0}
-        self.train_df = pan.read_csv(train_file_path)
-        self.train_np = self.train_df.to_numpy()
-        for row in self.train_df.iloc:
-            m_b_count[row['diagnosis']] += 1
-        self.train_size = self.train_df['diagnosis'].size
+        self.features_list = features_list
+        self.train_np = train_np
+        for obj in self.train_np:
+            m_b_count[obj[0]] += 1
+        self.train_size = len(self.train_np)
         ratio_ill = m_b_count['M'] / self.train_size
         ratio_healthy = m_b_count['B'] / self.train_size
         is_leaf = (m_b_count['M'] == 0 or m_b_count['B'] == 0) or (len(self.train_np) < self.min_node_size)
@@ -116,15 +116,16 @@ class ID3:
             return
         selected_feature = None
         best_dict = {
-                      "ig": 0,
-                      "threshold": 0,
-                      "set_l": [],
-                      "set_r": [],
-                      "h_e_l": 1,
-                      "h_e_r": 1
-                    }
+            "ig": 0,
+            "threshold": 0,
+            "set_l": [],
+            "set_r": [],
+            "h_e_l": 1,
+            "h_e_r": 1
+        }
         column = 0
-        for feature in self.train_df.columns:
+        for feature in self.features_list:
+            self.feature_to_column[feature] = column
             if feature != 'diagnosis':
                 is_valid, ig, threshold, set_l, set_r, h_e_l, h_e_r = self.dynamic_partition(column, node)
                 if not is_valid:
@@ -138,7 +139,7 @@ class ID3:
                     best_dict["h_e_r"] = h_e_r
                     selected_feature = feature
             column += 1
-        assert selected_feature is not None
+        # assert selected_feature is not None
 
         is_l_leaf, classification_l, default_l = self.analyze_node_set(best_dict["set_l"])
         is_r_leaf, classification_r, default_r = self.analyze_node_set(best_dict["set_r"])
@@ -158,19 +159,7 @@ class ID3:
         # end = time.time()
         # print(f' create_classifier_tree took {end - start} second')
 
-    def print_decision_tree(self, node=None):
-        if node is None:
-            print('ROOT\n-----')
-            node = self.head
-        node.print_node()
-        if not node.is_leaf:
-            print('left son:')
-            self.print_decision_tree(node.left_son)
-            print('right son:')
-            self.print_decision_tree(node.right_son)
-
     def dynamic_partition(self, column, node):
-        # print(f' ID3::dynamic_partition - start')
         # start = time.time()
 
         sorted_ascending_f_val = sorted(node.example_set, key=itemgetter(column))
@@ -208,28 +197,30 @@ class ID3:
 
         # end = time.time()
         # print(f'dynamic_partition took {end - start} second')
-        # print('ID3::dynamic_partition - end')
         return True, best_ig, best_threshold, part_left_set, part_right_set, \
                best_h_e_1, best_h_e_2
 
     def classifier(self, subject):
         if not self.is_tree_initialize:
             self.create_classifier_tree()
+        is_pandas_line = isinstance(subject, pan.Series)
         node = self.head
         while not node.is_leaf:
-            subj_f_val = subject[node.separating_f]
+            feature = node.separating_f
+            key = feature if is_pandas_line else self.feature_to_column[feature]
+            subj_f_val = subject[key]
             if subj_f_val >= node.threshold:
                 node = node.right_son
             else:
                 node = node.left_son
-        assert node.is_leaf
+        # assert node.is_leaf
         return node.leaf_diagnosis
 
     def analyze_node_set(self, node_set):
         m_b_count = {'B': 0, 'M': 0}
         for example in node_set:
             m_b_count[example[0]] += 1
-        default = 'M' if m_b_count['M'] > m_b_count['M'] else 'B'
+        default = 'M' if m_b_count['M'] >= m_b_count['B'] else 'B'
         is_leaf = (m_b_count['B'] == 0 or m_b_count['M'] == 0) or (len(node_set) < self.min_node_size)
         classification = None
         if is_leaf:
@@ -241,17 +232,106 @@ class ID3:
                 assert False
         return is_leaf, classification, default
 
+    def print_decision_tree(self, node=None):
+        if node is None:
+            print('ROOT\n-----')
+            node = self.head
+        node.print_node()
+        if not node.is_leaf:
+            self.print_decision_tree(node.left_son)
+            self.print_decision_tree(node.right_son)
+
+    def is_decision_tree_valid(self, node=None):
+        if node is None:
+            node = self.head
+        if len(node.example_set) < self.min_node_size:
+            return False
+        if not node.is_leaf:
+            self.is_decision_tree_valid(node.left_son)
+            self.is_decision_tree_valid(node.right_son)
+        return True
+
 
 if __name__ == '__main__':
-    id3 = ID3('/home/guy-pc/PycharmProjects/ID3/train.csv', min_node_set_size=5)
+    train_set = pan.read_csv('/home/guy-pc/PycharmProjects/ID3/train.csv')
+    test_set = pan.read_csv('/home/guy-pc/PycharmProjects/ID3/test.csv')
+    features = train_set.keys()
+
+    # Q1
+    id3 = ID3(features, train_set.to_numpy())
     id3.create_classifier_tree()
-    id3.print_decision_tree()
-    test = pan.read_csv('/home/guy-pc/PycharmProjects/ID3/test.csv')
+    # id3.print_decision_tree()
     correct_answers = 0
-    subjects_size = test['diagnosis'].size
-    for subj in test.iloc:
+    test_set_size = test_set['diagnosis'].size
+    for subj in test_set.iloc:
         diagnosis = id3.classifier(subj)
         real_diagnosis = subj['diagnosis']
         if diagnosis == real_diagnosis:
             correct_answers += 1
-    print(f'{correct_answers / subjects_size}')
+    print(f'{correct_answers / test_set_size}')
+
+    # Q3
+    M_val = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    train_set_np = train_set.to_numpy()
+    kf = KFold(n_splits=5, shuffle=True, random_state=303026462)
+    accuracy_list = []
+    for val in M_val:
+        KFold_res_list = []
+        for train_index, test_index in kf.split(train_set_np):
+            X_train, X_test = train_set_np[train_index], train_set_np[test_index]
+            id3_obj = ID3(features, X_train, min_node_set_size=val)
+            id3_obj.create_classifier_tree()
+            # assert id3_obj.is_decision_tree_valid()
+            correct_answers = 0
+            test_set_size = len(X_test)
+            for subj in X_test:
+                diagnosis = id3_obj.classifier(subj)
+                real_diagnosis = subj[0]
+                if diagnosis == real_diagnosis:
+                    correct_answers += 1
+            KFold_res_list.append(correct_answers / test_set_size)
+        accuracy_list.append(sum(KFold_res_list) / kf.get_n_splits())
+    x = M_val
+    y = accuracy_list
+    plt.plot(x, y)
+    plt.xlabel('min node-set size')
+    plt.ylabel('accuracy')
+    plt.title('Graph accuracy depend on min set size')
+    plt.show()
+
+    best_min_size = best_res = 0
+    for i in range(0, len(accuracy_list)-1):
+        if best_res < accuracy_list[i]:
+            best_res = accuracy_list[i]
+            best_min_size = M_val[i]
+    print(f'best_res = {best_res}, for min size = {best_min_size}')
+    id3 = ID3(features, train_set.to_numpy(), min_node_set_size=best_min_size)
+    id3.create_classifier_tree()
+    correct_answers = 0
+    test_set_size = test_set['diagnosis'].size
+    for subj in test_set.iloc:
+        diagnosis = id3.classifier(subj)
+        real_diagnosis = subj['diagnosis']
+        if diagnosis == real_diagnosis:
+            correct_answers += 1
+    print(f'{correct_answers / test_set_size}')
+
+    # Q4
+    id3 = ID3(features, train_set.to_numpy(), min_node_set_size=2)
+    id3.create_classifier_tree()
+    correct_answers = 0
+    test_set_size = test_set['diagnosis'].size
+    false_negative = false_positive = 0
+    for subj in test_set.iloc:
+        diagnosis = id3.classifier(subj)
+        real_diagnosis = subj['diagnosis']
+        if diagnosis == real_diagnosis:
+            correct_answers += 1
+        else:
+            if diagnosis == 'B':
+                false_negative += 1
+            else:
+                assert diagnosis == 'M'
+                false_positive += 1
+    # print(f'false_positive: {false_positive}, false_negative: {false_negative}')
+    print(f'{(0.1*false_positive + false_negative) / test_set_size}')
