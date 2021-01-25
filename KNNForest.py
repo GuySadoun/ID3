@@ -35,13 +35,11 @@ def dynamic_partition(column, node):
             best_threshold = optional_threshold
             best_h_e_1 = h_e_1
             best_h_e_2 = h_e_2
-    if not best_ig_assigned:
-        node.set_as_a_leaf()
-        return False, 0, 0, None, None, 0, 0
+    assert best_ig_assigned
     part_left_set = sorted_ascending_f_val[:best_i]
     part_right_set = sorted_ascending_f_val[best_i:]
 
-    return True, best_ig, best_threshold, part_left_set, part_right_set, \
+    return best_ig, best_threshold, part_left_set, part_right_set, \
            best_h_e_1, best_h_e_2
 
 
@@ -129,9 +127,7 @@ class KNNForest:
 
         for feature in self.features_list:
             if feature != 'diagnosis':
-                is_valid, ig, threshold, set_l, set_r, h_e_l, h_e_r = dynamic_partition(self.feature_to_index[feature], node)
-                if not is_valid:
-                    return
+                ig, threshold, set_l, set_r, h_e_l, h_e_r = dynamic_partition(self.feature_to_index[feature], node)
                 if ig > best_dict["ig"]:
                     best_dict["ig"] = ig
                     best_dict["threshold"] = threshold
@@ -182,8 +178,6 @@ class KNNForest:
                     node = node.left_son
             votes[node.leaf_diagnosis] += 1
         majority = 'B' if votes['B'] > votes['M'] else 'M'  # return majority decision
-        if majority != subject['diagnosis']:
-            print()
         return majority
 
 
