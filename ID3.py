@@ -304,7 +304,7 @@ if __name__ == '__main__':
         if best_res < accuracy_list[i]:
             best_res = accuracy_list[i]
             best_min_size = M_val[i]
-    print(f'best_res = {best_res}, for min size = {best_min_size}')
+    # print(f'best_res = {best_res}, for min size = {best_min_size}')
     id3 = ID3(features, train_set.to_numpy(), min_node_set_size=best_min_size)
     id3.create_classifier_tree()
     correct_answers = 0

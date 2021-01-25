@@ -1,7 +1,5 @@
 from operator import itemgetter
-
 from sklearn.model_selection import KFold
-
 from ID3 import Node, entropy_h
 import numpy as np
 import pandas as pan
@@ -14,7 +12,7 @@ def dynamic_partition(column, node):
     best_threshold = -1
     best_ig = 0
     set_size = len(sorted_ascending_f_val)
-    best_ig_assigned = False
+    # best_ig_assigned = False
     best_h_e_1 = best_h_e_2 = 0
     best_i = 1
 
@@ -33,11 +31,11 @@ def dynamic_partition(column, node):
         if ig > best_ig:
             best_i = i + 1
             best_ig = ig
-            best_ig_assigned = True
+            # best_ig_assigned = True
             best_threshold = optional_threshold
             best_h_e_1 = h_e_1
             best_h_e_2 = h_e_2
-    assert best_ig_assigned
+    # assert best_ig_assigned
     part_left_set = sorted_ascending_f_val[:best_i]
     part_right_set = sorted_ascending_f_val[best_i:]
 
@@ -59,8 +57,8 @@ def analyze_node_set(node_set):
             classification = 'B'
         elif m_b_count['B'] == 0:
             classification = 'M'
-        else:
-            assert False
+        # else:
+        #     assert False
     return is_leaf, classification, default
 
 
@@ -134,7 +132,7 @@ class CostSensitiveId3:
                         if diagnosis_t == 'B':
                             false_negative_t += 1
                         else:
-                            assert diagnosis_t == 'M'
+                            # assert diagnosis_t == 'M'
                             false_positive_t += 1
                 loss_res_for_frac.append((0.1 * false_positive_t + false_negative_t) / test_set_size_t)
             loss_list.append(sum(loss_res_for_frac)/self.K_fold.get_n_splits())
@@ -226,11 +224,6 @@ class CostSensitiveId3:
             else:
                 node = next_node
         # assert node.is_leaf
-        # if node.leaf_diagnosis == 'B' and subject[0] == 'M':
-        #     print(f'false negative - id: {node.node_id}')
-        #     print(f'father th: {node.father.threshold} of feature: {node.father.separating_f}')
-        #     print(f'current f_val - id: {subj_f_val}')
-        #     print(f'percent of misvalue = {abs(subj_f_val-node.father.threshold)/node.father.threshold}')
 
         return node.leaf_diagnosis
 
