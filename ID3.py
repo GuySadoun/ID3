@@ -252,6 +252,45 @@ class ID3:
         return True
 
 
+# send show_graph=True from main to print the graph
+def experiment(train_example_set, show_graph=False):
+    M_val = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    train_set_np = train_example_set.to_numpy()
+    kf = KFold(n_splits=5, shuffle=True, random_state=303026462)
+    accuracy_list = []
+    for val in M_val:
+        KFold_res_list = []
+        for train_index, test_index in kf.split(train_set_np):
+            X_train, X_test = train_set_np[train_index], train_set_np[test_index]
+            id3_obj = ID3(features, X_train, min_node_set_size=val)
+            id3_obj.create_classifier_tree()
+            # assert id3_obj.is_decision_tree_valid()
+            correct_answers_counter = 0
+            Xtest_set_size = len(X_test)
+            for subject in X_test:
+                id3_diagnosis = id3_obj.classifier(subject)
+                actual_diagnosis = subject[0]
+                if id3_diagnosis == actual_diagnosis:
+                    correct_answers_counter += 1
+            KFold_res_list.append(correct_answers_counter / Xtest_set_size)
+        accuracy_list.append((val, sum(KFold_res_list) / kf.get_n_splits()))
+    if show_graph:
+        x = M_val
+        y = accuracy_list
+        plt.plot(x, y)
+        plt.xlabel('min node-set size')
+        plt.ylabel('accuracy')
+        plt.title('Graph accuracy depend on min set size')
+        plt.show()
+    best_min_size = best_res = 0
+    for tup in accuracy_list:
+        if best_res < tup[1]:
+            best_res = tup[1]
+            best_min_size = tup[0]
+    # print(f'best_res = {best_res}, for min size = {best_min_size}')
+    return best_min_size
+
+
 if __name__ == '__main__':
     train_set = pan.read_csv('/home/guy-pc/PycharmProjects/ID3/train.csv')
     test_set = pan.read_csv('/home/guy-pc/PycharmProjects/ID3/test.csv')
@@ -271,41 +310,9 @@ if __name__ == '__main__':
     print(f'{correct_answers / test_set_size}')
 
     # Q3
-    M_val = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-    train_set_np = train_set.to_numpy()
-    kf = KFold(n_splits=5, shuffle=True, random_state=303026462)
-    accuracy_list = []
-    for val in M_val:
-        KFold_res_list = []
-        for train_index, test_index in kf.split(train_set_np):
-            X_train, X_test = train_set_np[train_index], train_set_np[test_index]
-            id3_obj = ID3(features, X_train, min_node_set_size=val)
-            id3_obj.create_classifier_tree()
-            # assert id3_obj.is_decision_tree_valid()
-            correct_answers = 0
-            test_set_size = len(X_test)
-            for subj in X_test:
-                diagnosis = id3_obj.classifier(subj)
-                real_diagnosis = subj[0]
-                if diagnosis == real_diagnosis:
-                    correct_answers += 1
-            KFold_res_list.append(correct_answers / test_set_size)
-        accuracy_list.append(sum(KFold_res_list) / kf.get_n_splits())
-    x = M_val
-    y = accuracy_list
-    plt.plot(x, y)
-    plt.xlabel('min node-set size')
-    plt.ylabel('accuracy')
-    plt.title('Graph accuracy depend on min set size')
-    plt.show()
-
-    best_min_size = best_res = 0
-    for i in range(0, len(accuracy_list)-1):
-        if best_res < accuracy_list[i]:
-            best_res = accuracy_list[i]
-            best_min_size = M_val[i]
-    # print(f'best_res = {best_res}, for min size = {best_min_size}')
-    id3 = ID3(features, train_set.to_numpy(), min_node_set_size=best_min_size)
+    best_M = experiment(train_set)
+    id3 = ID3(features, train_set.to_numpy(), min_node_set_size=best_M)  # for dynamic M adjustments
+    # id3 = ID3(features, train_set.to_numpy(), min_node_set_size=3)  # for best result
     id3.create_classifier_tree()
     correct_answers = 0
     test_set_size = test_set['diagnosis'].size
