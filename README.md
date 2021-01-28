@@ -4,7 +4,7 @@ small project of ML programming.
 2 data files included, train and test.
 
 study the train file of few hundred subjects with 20+ feature of physical info, each subject have diagnosis of Corona virus infection (B)-healthy or (M)-infected.
-the program study the train test and create classifier which diagnos each subj from test group.
+the program study the train test and creates a classifier which diagnose each subj from test group.
 
 ID3 - basic ID3 algorithm implementation with dynamic partition of continuous features, find the best feature and best threshold for biggest information gain, 
       one decision tree is builed based on train.csv file reaches 96% accuracy on test.csv file prediction.
