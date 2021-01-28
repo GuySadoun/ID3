@@ -1,4 +1,4 @@
-# ID3
+# ID3 & KNNForest algorithms implementation
 AI - ID3 algo for building decision trees
 small project of ML programming.
 2 data files included, train and test.
